@@ -36,6 +36,26 @@
     </script>
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #f8fafc; }
+
+        /* حركة التمرير المستمرة من الأسفل إلى الأعلى للأقسام */
+        @keyframes scrollUp {
+            0% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(-50%);
+            }
+        }
+
+        .animate-ticker {
+            display: flex;
+            flex-direction: column;
+            animation: scrollUp 25s linear infinite;
+        }
+
+        .ticker-wrapper:hover .animate-ticker {
+            animation-play-state: paused; /* إيقاف مؤقت عند وضع الماوس لتمكين التفاعل */
+        }
     </style>
 </head>
 <body class="text-gray-800 flex flex-col min-h-screen">
@@ -79,7 +99,7 @@
 
     <!-- Footer -->
     <footer class="bg-white border-t border-gray-100 py-6 text-center text-xs text-gray-500">
-        جميع الحقوق محفوظة &copy; <span id="currentYear"></span> | إعداد وبرمجة أ. صلاح الرحيمان[cite: 1]
+        جميع الحقوق محفوظة &copy; <span id="currentYear"></span> | إعداد وبرمجة أ. صلاح الرحيمان
     </footer>
 
     <script>
@@ -132,24 +152,55 @@
             const container = document.getElementById('contentContainer');
             container.innerHTML = '';
 
-            const targetGrades = currentGradeFilter === 'all' ? ['السادس', 'الخامس', 'الرابع'] : [currentGradeFilter];
+            let targetGrades = currentGradeFilter === 'all' ? ['السادس', 'الخامس', 'الرابع'] : [currentGradeFilter];
 
-            targetGrades.forEach(gradeName => {
-                const gradeStudents = students.filter(s => {
-                    if (!s.grade) return false;
-                    let g = String(s.grade).trim();
-                    if (gradeName === 'السادس' && (g.includes('سادس') || g.includes('6') || g.includes('السادس'))) return true;
-                    if (gradeName === 'الخامس' && (g.includes('خامس') || g.includes('5') || g.includes('الخامس'))) return true;
-                    if (gradeName === 'الرابع' && (g.includes('رابع') || g.includes('4') || g.includes('الرابع'))) return true;
-                    return g.includes(gradeName);
+            // إذا كان الخيار "عرض كافة الصفوف"، نقوم بلف الأقسام داخل حاوية ذات حركة تمرير مستمرة (Ticker) لضمان تكرار الحركة بسلاسة من الأسفل للأعلى
+            if (currentGradeFilter === 'all') {
+                const tickerWrapper = document.createElement('div');
+                tickerWrapper.className = "ticker-wrapper overflow-hidden relative";
+                tickerWrapper.style.maxHeight = "750px"; // تحكم بارتفاع النافذة المتحركة الظاهرة
+
+                const tickerContainer = document.createElement('div');
+                tickerContainer.className = "space-y-12 animate-ticker";
+
+                // دمج القائمة مرتين لتحقيق حركة دائرية متصلة بلا انقطاع (Seamless Loop)
+                const loopGrades = [...targetGrades, ...targetGrades];
+
+                loopGrades.forEach(gradeName => {
+                    const gradeStudents = students.filter(s => {
+                        if (!s.grade) return false;
+                        let g = String(s.grade).trim();
+                        if (gradeName === 'السادس' && (g.includes('سادس') || g.includes('6') || g.includes('السادس'))) return true;
+                        if (gradeName === 'الخامس' && (g.includes('خامس') || g.includes('5') || g.includes('الخامس'))) return true;
+                        if (gradeName === 'الرابع' && (g.includes('رابع') || g.includes('4') || g.includes('الرابع'))) return true;
+                        return g.includes(gradeName);
+                    });
+                    
+                    const sectionHtml = createGradeSectionElement(gradeName, gradeStudents);
+                    tickerContainer.appendChild(sectionHtml);
                 });
 
-                // بناء قسم الصف دائماً حتى لو لم تكن هناك بيانات (لعرض إطارات فارغة جمالية)
-                ParserGradeSection(container, gradeName, gradeStudents);
-            });
+                tickerWrapper.appendChild(tickerContainer);
+                container.appendChild(tickerWrapper);
+            } else {
+                // العرض العادي في حال اختيار صف معين
+                targetGrades.forEach(gradeName => {
+                    const gradeStudents = students.filter(s => {
+                        if (!s.grade) return false;
+                        let g = String(s.grade).trim();
+                        if (gradeName === 'السادس' && (g.includes('سادس') || g.includes('6') || g.includes('السادس'))) return true;
+                        if (gradeName === 'الخامس' && (g.includes('خامس') || g.includes('5') || g.includes('الخامس'))) return true;
+                        if (gradeName === 'الرابع' && (g.includes('رابع') || g.includes('4') || g.includes('الرابع'))) return true;
+                        return g.includes(gradeName);
+                    });
+                    
+                    const sectionHtml = createGradeSectionElement(gradeName, gradeStudents);
+                    container.appendChild(sectionHtml);
+                });
+            }
         }
 
-        function ParserGradeSection(container, gradeName, gradeStudents) {
+        function createGradeSectionElement(gradeName, gradeStudents) {
             const sectionDiv = document.createElement('div');
             sectionDiv.className = "space-y-4";
 
@@ -165,7 +216,6 @@
             const gridDiv = document.createElement('div');
             gridDiv.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6";
 
-            // إذا توفرت بيانات طلاب، يتم عرضهم
             if (gradeStudents.length > 0) {
                 gradeStudents.forEach(s => {
                     const card = document.createElement('div');
@@ -208,7 +258,6 @@
                     gridDiv.appendChild(card);
                 });
             } else {
-                // عرض بطاقات فارغة جمالية (قيد الانتظار) في حال عدم وجود طلاب مضافين لهذا الصف
                 for (let i = 0; i < 2; i++) {
                     const emptyCard = document.createElement('div');
                     emptyCard.className = "bg-white/70 backdrop-blur-sm rounded-3xl border border-dashed border-gray-300 p-6 flex flex-col items-center text-center relative overflow-hidden opacity-75";
@@ -233,7 +282,7 @@
             }
 
             sectionDiv.appendChild(gridDiv);
-            container.appendChild(sectionDiv);
+            return sectionDiv;
         }
 
         function switchImgServer(img, id) {
